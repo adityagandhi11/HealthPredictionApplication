@@ -11,7 +11,7 @@ not a clinical decision system.
 - SQLite persistence and SQLAlchemy ORM.
 - Validation for names, email, numeric values, supported date formats, and future
   dates.
-- Duplicate patient records and duplicate email addresses are allowed.
+- Duplicate name/email pairs are rejected (case-insensitive, ignoring surrounding whitespace).
 - Optional Groq AI remarks, stored with an explicit `pending`, `generated`, or
   `failed` status; a provider outage never prevents the record being saved.
 - Assessment test-data runner with exact supplied examples and per-case results.
@@ -125,8 +125,9 @@ python -c "import sys; sys.path.insert(0, 'backend'); from app.database.connecti
 ```
 
 The startup routine also upgrades an earlier SQLite scaffold by adding the AI
-status column and removing its old unique-email index. The resulting schema
-allows assessment duplicate entries as required.
+status column, removing its old unique-email index, and adding SQLite guards
+that prevent new duplicate name/email pairs without deleting existing records.
+Matching ignores case and surrounding whitespace.
 
 ## Run
 
@@ -173,8 +174,9 @@ success-shaped remarks. Retry failures return a readable 503 response.
 Open **Assessment data**, review the ten supplied cases, confirm the database
 write, and run them through the actual API. Results report each accepted or
 rejected case. Cases 2 (malformed email), 4 (impossible date), and 8 (future
-date and malformed email) should be rejected; the duplicate in case 6 should
-be accepted. The remaining seven are valid. The assessment page is a test
+date and malformed email) should be rejected. Case 6 is rejected when case 1
+has already been saved because both have the same name/email pair. The
+remaining six are valid. The assessment page is a test
 harness; dashboard records are always fetched from SQLite.
 
 For the CRUD demonstration:
@@ -184,8 +186,8 @@ For the CRUD demonstration:
 2. Use **Delete patient**, then **Confirm delete**, and verify the row is gone.
 3. Use **Retry AI remarks** for pending/failed analyses after configuring Groq.
 
-The assessment runner writes to the configured database. It allows duplicates,
-so run it only once unless additional copies are intentional.
+The assessment runner writes to the configured database. It prevents saving
+duplicate patient name/email pairs, including when a batch is run more than once.
 
 ## Tests
 

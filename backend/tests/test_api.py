@@ -128,13 +128,35 @@ def test_rejects_invalid_lab_values(client: TestClient, value: object) -> None:
     assert any(error["field"] == "glucose" for error in response.json()["detail"])
 
 
-def test_duplicate_patients_are_allowed(client: TestClient) -> None:
+def test_duplicate_name_and_email_pair_is_rejected(client: TestClient) -> None:
     first = client.post("/api/patients", json=patient_payload())
-    duplicate = client.post("/api/patients", json=patient_payload())
+    duplicate = client.post(
+        "/api/patients",
+        json=patient_payload(full_name="  alex patient ", email=" ALEX@example.com "),
+    )
 
-    assert first.status_code == duplicate.status_code == 201
-    assert first.json()["id"] != duplicate.json()["id"]
-    assert len(client.get("/api/patients").json()) == 2
+    assert first.status_code == 201
+    assert duplicate.status_code == 409
+    assert duplicate.json()["detail"]["code"] == "duplicate_patient"
+    assert "already exists" in duplicate.json()["detail"]["message"]
+    assert len(client.get("/api/patients").json()) == 1
+
+
+def test_duplicate_name_email_pair_is_rejected_on_update(client: TestClient) -> None:
+    first = client.post("/api/patients", json=patient_payload())
+    second = client.post(
+        "/api/patients",
+        json=patient_payload(full_name="Another Patient", email="another@example.com"),
+    )
+
+    conflict = client.put(
+        f"/api/patients/{second.json()['id']}",
+        json={"full_name": first.json()["full_name"], "email": first.json()["email"]},
+    )
+
+    assert conflict.status_code == 409
+    assert conflict.json()["detail"]["code"] == "duplicate_patient"
+    assert client.get(f"/api/patients/{second.json()['id']}").json()["full_name"] == "Another Patient"
 
 
 def test_missing_patient_responses(client: TestClient) -> None:
@@ -166,7 +188,10 @@ def test_ai_success_is_saved_and_ai_failure_does_not_block_crud(
     )
     failed = client.post(
         "/api/patients",
-        json=patient_payload(email="another@example.com"),
+        json=patient_payload(
+            full_name="Another Patient",
+            email="another@example.com",
+        ),
     )
     assert failed.status_code == 201
     assert failed.json()["ai_status"] == "failed"
@@ -206,9 +231,10 @@ def test_assessment_dataset_and_crud_operations(client: TestClient) -> None:
         results.append(response)
 
     assert [index + 1 for index, result in enumerate(results) if result.status_code == 201] == [
-        1, 3, 5, 6, 7, 9, 10
+        1, 3, 5, 7, 9, 10
     ]
-    assert len(client.get("/api/patients").json()) == 7
+    assert results[5].status_code == 409
+    assert len(client.get("/api/patients").json()) == 6
 
     first_id = results[0].json()["id"]
     updated = client.put(
@@ -221,7 +247,7 @@ def test_assessment_dataset_and_crud_operations(client: TestClient) -> None:
     delete_id = results[2].json()["id"]
     assert client.delete(f"/api/patients/{delete_id}").status_code == 204
     patients = client.get("/api/patients").json()
-    assert len(patients) == 6
+    assert len(patients) == 5
     assert delete_id not in {patient["id"] for patient in patients}
 
 

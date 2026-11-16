@@ -6,6 +6,7 @@ from app.database.models import Patient
 from app.schemas.patient import PatientCreate, PatientRead, PatientUpdate
 from app.services.ai_service import AIConfigurationError, AIServiceError
 from app.services.patient_service import (
+    DuplicatePatientError,
     create_patient,
     delete_patient,
     get_patient,
@@ -22,7 +23,13 @@ def create_patient_endpoint(
     patient: PatientCreate,
     db: Session = Depends(get_db),
 ) -> Patient:
-    return create_patient(db, patient)
+    try:
+        return create_patient(db, patient)
+    except DuplicatePatientError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "duplicate_patient", "message": str(error)},
+        ) from error
 
 
 @router.get("", response_model=list[PatientRead])
@@ -44,7 +51,13 @@ def update_patient_endpoint(
     updates: PatientUpdate,
     db: Session = Depends(get_db),
 ) -> Patient:
-    patient = update_patient(db, patient_id, updates)
+    try:
+        patient = update_patient(db, patient_id, updates)
+    except DuplicatePatientError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "duplicate_patient", "message": str(error)},
+        ) from error
     if patient is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found.")
     return patient

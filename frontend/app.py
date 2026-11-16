@@ -567,7 +567,7 @@ else:
         )
     st.warning(
         "Running this batch writes each valid case to your database. Duplicate patient "
-        "records are allowed, so run it once unless you intentionally want additional copies."
+        "name/email pairs are rejected, so existing patients in your database may also be rejected."
     )
     confirmed = st.checkbox("I understand valid assessment records will be added to SQLite.")
     if st.button("Run all 10 assessment cases", type="primary", disabled=not confirmed):
@@ -616,6 +616,11 @@ else:
         accepted_col.metric("Accepted", accepted)
         rejected_col.metric("Rejected", rejected)
         st.dataframe(results, hide_index=True, width="stretch")
+        if any(result["Test"] == 6 and result["Result"] == "Rejected" for result in results):
+            st.info(
+                "Test 6 matches Test 1's name and email, so duplicate prevention "
+                "rejects it when Test 1 is already saved."
+            )
 
     st.markdown(
         '<div class="disclaimer">The assessment dataset is shown here as an explicit '
