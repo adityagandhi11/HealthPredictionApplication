@@ -27,11 +27,12 @@ class Patient(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     full_name: Mapped[str] = mapped_column(String(150), nullable=False)
     date_of_birth: Mapped[date] = mapped_column(Date, nullable=False)
-    email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True, index=True)
-    glucose: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
-    haemoglobin: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
-    cholesterol: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
+    email: Mapped[str] = mapped_column(String(320), nullable=False, index=True)
+    glucose: Mapped[Decimal | None] = mapped_column(Numeric(18, 6), nullable=True)
+    haemoglobin: Mapped[Decimal | None] = mapped_column(Numeric(18, 6), nullable=True)
+    cholesterol: Mapped[Decimal | None] = mapped_column(Numeric(18, 6), nullable=True)
     remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
